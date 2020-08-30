@@ -4,7 +4,7 @@
 #                                                                            #
 ##############################################################################
 
-gaisl <- function(type = c("binary", "real-valued", "permutation"), 
+gaisl_mod <- function(type = c("binary", "real-valued", "permutation"), 
                   fitness, ...,
                   lower, upper, nBits,
                   population = gaControl(type)$population,
@@ -181,6 +181,7 @@ gaisl <- function(type = c("binary", "real-valued", "permutation"),
                 optim = optim,
                 islands = list(),
                 summary = list(),
+                realfitnessSummary = list(),
                 fitnessValues = list(),
                 solutions = list())
   
@@ -200,13 +201,19 @@ gaisl <- function(type = c("binary", "real-valued", "permutation"),
                                dimnames = list(NULL, 
                                                names(gaSummary(rnorm(10)))))), 
                    numIslands)
+  
+  realsumryStat <- rep(list(matrix(as.double(NA), 
+                               nrow = numiter*migrationInterval, ncol = 6, 
+                               dimnames = list(NULL, 
+                                               names(gaSummary(rnorm(10)))))), 
+                   numIslands)
 
   for(iter in seq_len(numiter))
   {
     # GA evolution in islands
     GAs <- foreach(i. = seq_len(numIslands)) %DO%
                    # .options.multicore = list(set.seed = seed)
-                  { ga(type = type, 
+                  { ga_mod(type = type, 
                        fitness = fitness, ...,
                        lower = lower, upper = upper, nBits = nBits,
                        suggestions = POPs[[i.]],
@@ -237,6 +244,7 @@ gaisl <- function(type = c("binary", "real-valued", "permutation"),
       # get summary of GAs evolution
       j <- seq((iter-1)*migrationInterval+1, iter*migrationInterval)
       sumryStat[[i]][j,] <- GAs[[i]]@summary
+      realsumryStat[[i]][j,] <- GAs[[i]]@realfitnessSummary
       # migration step
       from <- i
       to <- (i %% numIslands) + 1
@@ -256,6 +264,7 @@ gaisl <- function(type = c("binary", "real-valued", "permutation"),
     }
     object@islands <- GAs
     object@summary <- sumryStat
+    object@realfitnessSummary <- realsumryStat
 
     if(is.function(monitor)) 
       { monitor(object) }
@@ -311,6 +320,7 @@ setClass(Class = "gaisl",
                         islands = "list",
                         summary = "list",
                         fitnessValues = "list",
+                        realfitnessSummary = "list",
                         solutions = "list",
                         fitnessValue = "numeric",
                         solution = "matrix"
@@ -353,6 +363,7 @@ summary.gaisl <- function(object, ...)
               iter = iter,
               epoch = iter/object@migrationInterval,
               fitnessValues = unlist(object@fitnessValues),
+              realfitnessSummary = object@realfitnessSummary,
               solutions = do.call(rbind, object@solutions)
   )
   class(out) <- "summary.gaisl"

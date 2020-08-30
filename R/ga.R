@@ -4,7 +4,7 @@
 #                                                                            #
 ##############################################################################
 
-ga <- function(type = c("binary", "real-valued", "permutation"), 
+ga_mod <- function(type = c("binary", "real-valued", "permutation"), 
                fitness, ...,
                lower, upper, nBits,
                population = gaControl(type)$population,
@@ -178,10 +178,13 @@ ga <- function(type = c("binary", "real-valued", "permutation"),
   i. <- NULL # dummy to trick R CMD check 
 
   fitnessSummary <- matrix(as.double(NA), nrow = maxiter, ncol = 6)
+  RealfitnessSummary <- matrix(as.double(NA), nrow = maxiter, ncol = 6)
   colnames(fitnessSummary) <- names(gaSummary(rnorm(10)))
+  colnames(RealfitnessSummary) <- names(gaSummary(rnorm(10)))
   bestSol <- if(keepBest) vector(mode = "list", length = maxiter)
              else         list()
   Fitness <- rep(NA, popSize)
+  Realfitness <- rep(NA, popSize)
 
   object <- new("ga", 
                 call = call, 
@@ -200,7 +203,9 @@ ga <- function(type = c("binary", "real-valued", "permutation"),
                 pcrossover = pcrossover, 
                 pmutation = if(is.numeric(pmutation)) pmutation else NA,
                 optim = optim,
-                fitness = Fitness, 
+                fitness = Fitness,
+                realfitness = Realfitness,
+                realfitnessSummary = RealfitnessSummary,
                 summary = fitnessSummary,
                 bestSol = bestSol)
   
@@ -228,8 +233,9 @@ ga <- function(type = c("binary", "real-valued", "permutation"),
              if(is.na(Fitness[i]))
                { fit <- do.call(fitness, c(list(Pop[i,]), callArgs)) 
                  if(updatePop)
-                   Pop[i,] <- attributes(fit)[[1]]
-                 Fitness[i] <- fit
+                   Pop[i,] <- attributes(fit[["fitness"]])[[1]]
+                 Fitness[i] <- fit[["fitness"]]
+                 Realfitness[i] <- fit[["realfitness"]]
                }
       }
       else
@@ -239,11 +245,20 @@ ga <- function(type = c("binary", "real-valued", "permutation"),
                        else                   
                          Fitness[i.] 
                      }
+        
+          Fitness <- Fitness[names(Fitness) == "fitness"] %>% unlist %>% as.numeric
+          Realfitness <- Fitness[names(Fitness) == "realfitness"] %>% unlist %>% as.numeric
+        
         }
       
       # update object
       object@population <- Pop
       object@fitness <- Fitness
+      object@realfitness <- Realfitness
+      fitnessSummary[iter, ] <- gaSummary(object@fitness)
+      object@summary <- fitnessSummary
+      RealfitnessSummary[iter,] <- gaSummary(object@realfitness)
+      object@realfitnessSummary <- RealfitnessSummary
       
       # Local search optimisation
       if(optim & (type == "real-valued"))
@@ -280,6 +295,7 @@ ga <- function(type = c("binary", "real-valued", "permutation"),
           # update iterations summary
           fitnessSummary[iter,] <- gaSummary(object@fitness)
           object@summary <- fitnessSummary
+
         }
       }
       
@@ -294,6 +310,7 @@ ga <- function(type = c("binary", "real-valued", "permutation"),
       # update iterations summary
       fitnessSummary[iter,] <- gaSummary(object@fitness)
       object@summary <- fitnessSummary
+      
       if(keepBest) 
         { object@bestSol[[iter]] <- unique(Pop[Fitness == max(Fitness, na.rm = TRUE),,drop=FALSE]) }
 
@@ -447,6 +464,8 @@ setClass(Class = "ga",
                         optim = "logical",
                         fitness = "numericOrNA",
                         summary = "matrix",
+                        realfitness = "numericOrNA",
+                        realfitnessSummary = "matrix",
                         bestSol = "list",
                         fitnessValue = "numeric",
                         solution = "matrix"
@@ -491,6 +510,8 @@ summary.ga <- function(object, ...)
               suggestions = suggestions,
               iter = object@iter,
               fitness = object@fitnessValue,
+              realfitness = object@realfitness,
+              realfitnessSummary = object@realfitnessSummary,
               solution = object@solution)
   class(out) <- "summary.ga"
   return(out)

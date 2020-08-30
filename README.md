@@ -12,6 +12,10 @@ discrete case, whether constrained or not. Users can easily define their own obj
 
 You can install the released version of **GA** from CRAN:
 
+#Preliminary edits;
+ga & gaisl amended to allow the fitness function to return a named list length 2, one element named "fitness" and the second element named "realfitness". A summary for each iteration, and each iteration for each island (if using gaisl) will be returned in the ga object once the function has finished. Further amendments will be made to make this more robust but for now I just needed a working solution that would return me my underlying fitness function (i.e RMSE) if I am artificially penalising my fitness function to reduce features in the model. For now, I have changed the function names to ga_mod and gaisl_mod to avoid conflicts with existing ga package. 
+
+
 ```{r}
 install.packages("GA")
 ```
